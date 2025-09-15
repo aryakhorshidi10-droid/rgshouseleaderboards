@@ -1,2 +1,256 @@
 # rgshouseleaderboards
 The RGS House Leaderboard
+<!-- =====================  HOUSE PREMIER LEAGUE TABLE (NO EXTERNAL LIBS)  ===================== -->
+<style>
+  /* Reset-insulation */
+  .house-pl * { box-sizing: border-box; }
+  .house-pl { --pl-purple:#38003c; --pl-mint:#d0f0cf; --pl-bg:#f5f7fb; --ink:#1b1f23; font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, "Noto Sans", sans-serif; color:var(--ink); background:var(--pl-bg); padding: 16px; border-radius: 16px; border:1px solid #e7e7ef; }
+  .house-pl h2 { margin: 0 0 12px; letter-spacing:.2px; font-weight:800; font-size: clamp(22px,3.2vw,28px); display:flex; align-items:center; gap:10px;}
+  .house-pl h2 .crest { width:28px; height:28px; border-radius:6px; background:linear-gradient(135deg,#ff0050, #ffa700); display:inline-block; }
+  .house-pl .sub { margin:-6px 0 16px; color:#546; font-size:13px; }
+
+  /* Standings strip */
+  .house-pl .standings { display:grid; grid-template-columns: repeat(6, minmax(130px,1fr)); gap:10px; margin-bottom:16px; }
+  .house-pl .card { position:relative; background:white; border-radius:14px; padding:12px; box-shadow: 0 8px 20px rgba(0,0,0,.06); border:1px solid #ececf5; transition:transform .15s ease, box-shadow .15s ease; }
+  .house-pl .card:hover { transform: translateY(-2px); box-shadow: 0 10px 24px rgba(0,0,0,.10); }
+  .house-pl .badge { position:absolute; top:-10px; right:-10px; width:34px; height:34px; border-radius:50%; display:grid; place-items:center; font-weight:800; color:#111; }
+  .house-pl .badge.g { background:linear-gradient(#ffd300,#ffea70); }
+  .house-pl .badge.s { background:linear-gradient(#dadfe5,#f5f7f9); }
+  .house-pl .badge.b { background:linear-gradient(#cd7f32,#eaaa75); }
+  .house-pl .house { font-weight:800; font-size:15px; letter-spacing:.4px; display:flex; align-items:center; gap:8px; }
+  .house-pl .dot { width:14px; height:14px; border-radius:50%; display:inline-block; border:2px solid #0002; }
+  .house-pl .pts { font-size:26px; font-weight:900; margin-top:6px; }
+  .house-pl .meta { font-size:12px; opacity:.7; margin-top:2px; }
+
+  /* Controls */
+  .house-pl .controls { display:flex; gap:10px; align-items:center; margin:12px 0; flex-wrap:wrap;}
+  .house-pl input[type="search"]{ padding:8px 10px; border-radius:10px; border:1px solid #dadbe7; background:white; min-width:240px; }
+  .house-pl .pill { padding:8px 10px; border-radius:999px; border:1px solid #dadbe7; background:white; cursor:pointer; font-size:13px; }
+  .house-pl .pill:hover{ background:#f1f4fe; }
+
+  /* Table */
+  .house-pl .wrap { overflow:auto; border-radius:14px; border:1px solid #ececf5; }
+  .house-pl table { width:100%; border-collapse: separate; border-spacing:0; background:white; }
+  .house-pl thead th { position:sticky; top:0; z-index:2; text-transform:uppercase; letter-spacing:.6px; font-size:12px; background:var(--pl-purple); color:white; padding:12px 10px; }
+  .house-pl thead .subh { background:#f0f0ff; color:#333; font-weight:700; font-size:12px; }
+  .house-pl thead tr.houseband th { font-size:13px; padding:10px; }
+  .house-pl tbody td { padding:9px 10px; border-bottom:1px solid #f0f0f7; text-align:center; font-weight:600; }
+  .house-pl tbody tr:nth-child(odd){ background:#fafbff; }
+  .house-pl tbody tr:hover { background:#eef6ff; }
+  .house-pl tbody td:first-child, .house-pl thead th:first-child { text-align:left; font-weight:800; }
+  .house-pl tfoot td { background:#f8fafb; font-weight:900; padding:12px 10px; border-top:2px solid #e6e8f2; }
+  .house-pl .clickable { cursor:pointer; }
+  .house-pl .clickable .arrow{ display:inline-block; margin-left:6px; transform:translateY(-1px); font-size:11px; opacity:.7; }
+  .house-pl .tooltip { position:relative; }
+  .house-pl .tooltip:hover::after{
+    content: attr(data-tip);
+    position:absolute; left:50%; top:-6px; transform: translate(-50%, -100%);
+    padding:6px 8px; background:#111; color:#fff; font-size:12px; border-radius:6px; white-space:nowrap; box-shadow:0 4px 10px rgba(0,0,0,.25);
+  }
+
+  /* House colours for bands & dots */
+  .AustenC { background:#27b24d; }
+  .BeckinghamC { background:#e13e3e; }
+  .HamondeC { background:#7a7d86; }
+  .NettlesC { background:#1e78ff; }
+  .PowellC { background:#ff8c26; }
+  .ValpyC { background:#22c39b; }
+
+  .house-pl thead tr.houseband th:nth-child(2){ background:#27b24d; }
+  .house-pl thead tr.houseband th:nth-child(4){ background:#e13e3e; }
+  .house-pl thead tr.houseband th:nth-child(6){ background:#7a7d86; }
+  .house-pl thead tr.houseband th:nth-child(8){ background:#1e78ff; }
+  .house-pl thead tr.houseband th:nth-child(10){ background:#ff8c26; }
+  .house-pl thead tr.houseband th:nth-child(12){ background:#22c39b; }
+
+  /* Mobile tweaks */
+  @media (max-width:900px){
+    .house-pl .standings{ grid-template-columns: repeat(2, 1fr); }
+    .house-pl thead .subh span{ display:none; } /* tighten 'Pos / Pts' headers on small screens */
+  }
+</style>
+
+<div class="house-pl" id="HousePL">
+  <h2><span class="crest" aria-hidden="true"></span> School House Premier League</h2>
+  <div class="sub">Click any <b>Pts</b> header to sort the event rows by that house. Use the search to filter events. Standings auto-update.</div>
+
+  <!-- Standings -->
+  <div class="standings" id="standings"></div>
+
+  <!-- Controls -->
+  <div class="controls">
+    <input id="filterInput" type="search" placeholder="Search events (e.g., Rugby, Chess, Sports Day)…" />
+    <button class="pill" id="resetSort">Reset order</button>
+  </div>
+
+  <!-- Table -->
+  <div class="wrap">
+    <table id="grid">
+      <thead>
+        <tr class="houseband">
+          <th rowspan="2">Event</th>
+          <th colspan="2" class="AustenC">Austen</th>
+          <th colspan="2" class="BeckinghamC">Beckingham</th>
+          <th colspan="2" class="HamondeC">Hamonde</th>
+          <th colspan="2" class="NettlesC">Nettles</th>
+          <th colspan="2" class="PowellC">Powell</th>
+          <th colspan="2" class="ValpyC">Valpy</th>
+        </tr>
+        <tr class="subh">
+          <th>Pos</th><th class="clickable" data-sort="Austen">Pts <span class="arrow">▾</span></th>
+          <th>Pos</th><th class="clickable" data-sort="Beckingham">Pts <span class="arrow">▾</span></th>
+          <th>Pos</th><th class="clickable" data-sort="Hamonde">Pts <span class="arrow">▾</span></th>
+          <th>Pos</th><th class="clickable" data-sort="Nettles">Pts <span class="arrow">▾</span></th>
+          <th>Pos</th><th class="clickable" data-sort="Powell">Pts <span class="arrow">▾</span></th>
+          <th>Pos</th><th class="clickable" data-sort="Valpy">Pts <span class="arrow">▾</span></th>
+        </tr>
+      </thead>
+      <tbody></tbody>
+      <tfoot>
+        <tr id="totalsRow">
+          <td>Totals</td>
+          <td></td><td></td>
+          <td></td><td></td>
+          <td></td><td></td>
+          <td></td><td></td>
+          <td></td><td></td>
+          <td></td><td></td>
+        </tr>
+      </tfoot>
+    </table>
+  </div>
+</div>
+
+<script>
+(function(){
+  // ====== DATA (from your screenshot, fully entered and fixed) ======
+  const EVENTS = [
+    {name:"Art", Austen:{pos:4,pts:3}, Beckingham:{pos:1,pts:6}, Hamonde:{pos:2,pts:5}, Nettles:{pos:6,pts:1}, Powell:{pos:3,pts:4}, Valpy:{pos:5,pts:2}},
+    {name:"Badminton", Austen:{pos:6,pts:2}, Beckingham:{pos:2,pts:5}, Hamonde:{pos:6,pts:1}, Nettles:{pos:4,pts:3}, Powell:{pos:5,pts:2}, Valpy:{pos:3,pts:4}},
+    {name:"Basketball", Austen:{pos:5,pts:3}, Beckingham:{pos:"3=",pts:5.25}, Hamonde:{pos:6,pts:1.5}, Nettles:{pos:"3=",pts:5.25}, Powell:{pos:2,pts:7.5}, Valpy:{pos:1,pts:9}},
+    {name:"Chess", Austen:{pos:1,pts:8.25}, Beckingham:{pos:5,pts:3}, Hamonde:{pos:6,pts:1.5}, Nettles:{pos:4,pts:4.5}, Powell:{pos:1,pts:8.25}, Valpy:{pos:3,pts:6}},
+    {name:"Cricket", Austen:{pos:1,pts:9}, Beckingham:{pos:3,pts:6}, Hamonde:{pos:5,pts:3}, Nettles:{pos:4,pts:4.5}, Powell:{pos:6,pts:1.5}, Valpy:{pos:2,pts:7.5}},
+    {name:"Debating", Austen:{pos:5,pts:2}, Beckingham:{pos:6,pts:1}, Hamonde:{pos:2,pts:5}, Nettles:{pos:1,pts:6}, Powell:{pos:3,pts:4}, Valpy:{pos:4,pts:3}},
+    {name:"Drama", Austen:{pos:1,pts:9}, Beckingham:{pos:2,pts:7.5}, Hamonde:{pos:"4=",pts:3.75}, Nettles:{pos:6,pts:1.5}, Powell:{pos:"4=",pts:3.75}, Valpy:{pos:3,pts:6}},
+    {name:"Fencing", Austen:{pos:4,pts:4}, Beckingham:{pos:5,pts:2}, Hamonde:{pos:3,pts:4}, Nettles:{pos:1,pts:1}, Powell:{pos:6,pts:6}, Valpy:{pos:2,pts:5}},
+    {name:"Football", Austen:{pos:2,pts:10}, Beckingham:{pos:"3=",pts:7}, Hamonde:{pos:"3=",pts:7}, Nettles:{pos:1,pts:12}, Powell:{pos:6,pts:2}, Valpy:{pos:5,pts:4}},
+    {name:"Golf", Austen:{pos:5,pts:1}, Beckingham:{pos:2,pts:2.5}, Hamonde:{pos:4,pts:1.5}, Nettles:{pos:1,pts:3}, Powell:{pos:3,pts:2}, Valpy:{pos:6,pts:0.5}},
+    {name:"Hockey", Austen:{pos:5,pts:4}, Beckingham:{pos:2,pts:10}, Hamonde:{pos:6,pts:2}, Nettles:{pos:1,pts:12}, Powell:{pos:4,pts:6}, Valpy:{pos:3,pts:8}},
+    {name:"Maths", Austen:{pos:5,pts:2}, Beckingham:{pos:"2=",pts:4.5}, Hamonde:{pos:"2=",pts:4.5}, Nettles:{pos:6,pts:1}, Powell:{pos:1,pts:3}, Valpy:{pos:1,pts:6}},
+    {name:"Music", Austen:{pos:2,pts:7.5}, Beckingham:{pos:"3=",pts:5.25}, Hamonde:{pos:1,pts:9}, Nettles:{pos:6,pts:1.5}, Powell:{pos:"3=",pts:5.25}, Valpy:{pos:5,pts:3}},
+    {name:"Photography", Austen:{pos:3,pts:4}, Beckingham:{pos:4,pts:3}, Hamonde:{pos:6,pts:1}, Nettles:{pos:5,pts:2}, Powell:{pos:1,pts:6}, Valpy:{pos:2,pts:5}},
+    {name:"Quiz", Austen:{pos:"2=",pts:6.75}, Beckingham:{pos:4,pts:4.5}, Hamonde:{pos:"2=",pts:6.75}, Nettles:{pos:6,pts:1.5}, Powell:{pos:1,pts:9}, Valpy:{pos:5,pts:3}},
+    {name:"Reading", Austen:{pos:6,pts:2.5}, Beckingham:{pos:3,pts:2}, Hamonde:{pos:4,pts:1.5}, Nettles:{pos:6,pts:0.5}, Powell:{pos:5,pts:1}, Valpy:{pos:1,pts:3}},
+    {name:"Rugby", Austen:{pos:"3=",pts:6}, Beckingham:{pos:2,pts:10}, Hamonde:{pos:"3=",pts:6}, Nettles:{pos:"3=",pts:6}, Powell:{pos:6,pts:2}, Valpy:{pos:1,pts:12}},
+    {name:"Shooting", Austen:{pos:5,pts:2}, Beckingham:{pos:3,pts:4}, Hamonde:{pos:2,pts:5}, Nettles:{pos:6,pts:1}, Powell:{pos:1,pts:6}, Valpy:{pos:4,pts:3}},
+    {name:"Softball", Austen:{pos:4,pts:6}, Beckingham:{pos:1,pts:12}, Hamonde:{pos:2,pts:8}, Nettles:{pos:5,pts:4}, Powell:{pos:6,pts:2}, Valpy:{pos:2,pts:10}},
+    {name:"Sports Day", Austen:{pos:2,pts:10}, Beckingham:{pos:1,pts:12}, Hamonde:{pos:3,pts:8}, Nettles:{pos:6,pts:2}, Powell:{pos:4,pts:6}, Valpy:{pos:5,pts:4}},
+    {name:"Squash", Austen:{pos:5,pts:2}, Beckingham:{pos:2,pts:5}, Hamonde:{pos:4,pts:3}, Nettles:{pos:6,pts:1}, Powell:{pos:1,pts:6}, Valpy:{pos:3,pts:4}},
+    {name:"Swimming", Austen:{pos:2,pts:7.5}, Beckingham:{pos:3,pts:6}, Hamonde:{pos:4,pts:4.5}, Nettles:{pos:6,pts:1.5}, Powell:{pos:5,pts:3}, Valpy:{pos:1,pts:9}},
+    {name:"TableTennis", Austen:{pos:"1=",pts:8.25}, Beckingham:{pos:3,pts:6}, Hamonde:{pos:4,pts:4.5}, Nettles:{pos:5,pts:3}, Powell:{pos:6,pts:1.5}, Valpy:{pos:"1=",pts:8.25}},
+    {name:"Tennis", Austen:{pos:5,pts:2}, Beckingham:{pos:2,pts:5}, Hamonde:{pos:3,pts:4}, Nettles:{pos:1,pts:6}, Powell:{pos:6,pts:1}, Valpy:{pos:4,pts:3}},
+    {name:"Ultimate Frisbe", Austen:{pos:3,pts:5}, Beckingham:{pos:1,pts:1}, Hamonde:{pos:6,pts:0.5}, Nettles:{pos:4,pts:1.5}, Powell:{pos:2,pts:2.5}, Valpy:{pos:5,pts:3}},
+    {name:"X Country", Austen:{pos:2,pts:10}, Beckingham:{pos:"4=",pts:5}, Hamonde:{pos:"4=",pts:5}, Nettles:{pos:3,pts:8}, Powell:{pos:1,pts:12}, Valpy:{pos:6,pts:2}},
+  ];
+
+  const HOUSES = [
+    {key:"Austen", color:"#27b24d"},
+    {key:"Beckingham", color:"#e13e3e"},
+    {key:"Hamonde", color:"#7a7d86"},
+    {key:"Nettles", color:"#1e78ff"},
+    {key:"Powell", color:"#ff8c26"},
+    {key:"Valpy", color:"#22c39b"},
+  ];
+
+  // ====== helpers ======
+  const by = (k) => (a,b)=> (a[k]===b[k]?0:(a[k]>b[k]?1:-1));
+  function sumPts(key){ return EVENTS.reduce((s,r)=> s + Number(r[key].pts||0), 0); }
+
+  // ====== render standings (auto-rank) ======
+  function renderStandings(){
+    const wrap = document.getElementById('standings');
+    wrap.innerHTML = "";
+    const totals = HOUSES.map(h => ({house:h.key, pts:+sumPts(h.key).toFixed(2), color:h.color}))
+                         .sort((a,b)=> b.pts - a.pts);
+    totals.forEach((t,i)=>{
+      const card = document.createElement('div');
+      card.className = 'card';
+      const badge = document.createElement('div');
+      badge.className = 'badge ' + (i===0?'g': i===1?'s': i===2?'b':'');
+      badge.textContent = (i+1);
+      const line = document.createElement('div');
+      line.className = 'house';
+      line.innerHTML = `<span class="dot" style="background:${t.color}"></span>${t.house}`;
+      const pts = document.createElement('div'); pts.className='pts'; pts.textContent = t.pts;
+      const meta = document.createElement('div'); meta.className='meta'; meta.textContent = 'Total points';
+      card.appendChild(badge); card.appendChild(line); card.appendChild(pts); card.appendChild(meta);
+      wrap.appendChild(card);
+    });
+  }
+
+  // ====== render table body & totals ======
+  const tbody = document.querySelector('#grid tbody');
+  const totalsRow = document.getElementById('totalsRow');
+
+  function renderRows(rows){
+    tbody.innerHTML = "";
+    rows.forEach(r=>{
+      const tr = document.createElement('tr');
+      tr.innerHTML = `
+        <td>${r.name}</td>
+        ${HOUSES.map(h=>{
+          const cell = r[h.key];
+          const tip = `${h.key} • ${r.name}: Pos ${cell.pos} • ${cell.pts} pts`;
+          return `
+            <td class="tooltip" data-tip="${tip}">${cell.pos}</td>
+            <td class="tooltip" data-tip="${tip}">${cell.pts}</td>
+          `;
+        }).join('')}
+      `;
+      tbody.appendChild(tr);
+    });
+  }
+
+  function renderTotals(){
+    const tds = totalsRow.querySelectorAll('td');
+    // first td is label
+    HOUSES.forEach((h, i)=>{
+      const total = sumPts(h.key).toFixed(2).replace(/\.00$/,'');
+      const posCellIndex = 1 + i*2 + 0;
+      const ptsCellIndex = 1 + i*2 + 1;
+      tds[posCellIndex].textContent = "";              // (empty under POS)
+      tds[ptsCellIndex].textContent = total;           // points total
+    });
+  }
+
+  // ====== Sorting by a House's points column ======
+  let originalOrder = EVENTS.slice();
+  function sortByHouse(key){
+    const sorted = EVENTS.slice().sort((a,b)=> b[key].pts - a[key].pts);
+    renderRows(sorted);
+  }
+
+  // ====== Filtering ======
+  const filterInput = document.getElementById('filterInput');
+  filterInput.addEventListener('input', ()=>{
+    const q = filterInput.value.trim().toLowerCase();
+    const filtered = EVENTS.filter(r => r.name.toLowerCase().includes(q));
+    renderRows(filtered);
+  });
+
+  // ====== Header click bindings ======
+  document.querySelectorAll('.clickable').forEach(th=>{
+    th.addEventListener('click', ()=> sortByHouse(th.dataset.sort));
+  });
+  document.getElementById('resetSort').addEventListener('click', ()=>{
+    filterInput.value = "";
+    renderRows(originalOrder);
+  });
+
+  // ====== Init ======
+  renderStandings();
+  renderRows(originalOrder);
+  renderTotals();
+})();
+</script>
+<!-- =====================  /END HOUSE PREMIER LEAGUE TABLE  ===================== -->
